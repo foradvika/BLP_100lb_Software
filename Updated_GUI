@@ -545,3 +545,4 @@ if __name__ == "__main__":
         tel = Telemetry(sys_health)
     window = GUI()
     window.window.mainloop()
+
