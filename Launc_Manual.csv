@@ -1,0 +1,11 @@
+﻿T+ (s),Function
+-30,Start_Count
+-20,Read_OPD_O2
+-20,Read_FPD-02
+-20,Read_EPD_O1
+-20,FV_02
+-15,NV_O2
+-0.05,OV_O3
+-0.02,Spark
+0,FV_03
+0.28,Spark
