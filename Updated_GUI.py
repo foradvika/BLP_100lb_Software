@@ -7,15 +7,15 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import pandas as pd
-import os
-import socket
+#import os
+#import socket
 import time
 from pycode import Telemetry, System_Health, Metrics
 from pycode import V1, V2, V3, V4, C, T, CS, A
-from serial_pc import BT
-import subprocess
-import datetime
-import json
+#from serial_pc import BT
+#import subprocess
+#import datetime
+#import json
 
 # ---------- Fake Telemetry for Simulation Testing ----------
 class FakeTelemetry:
@@ -65,6 +65,7 @@ class GUI:
         self.pt3_data = []
         self.pt4_data = []
         self.pt5_data = []
+
         # all_data will hold rows of [thrust, pt1, pt2, pt3, pt4, pt5]
         self.all_data = []
 
@@ -296,44 +297,44 @@ class GUI:
             if self.pt2_data and self.pt2_data[-1] < 15:
                 tel.abort()
                 tel.send_data()
-            return "Opd_02 low: Test aborted"
+            return "FPD_02 low: Test aborted"
 
         def Read_EPD_01():
             if self.pt3_data and self.pt3_data[-1] < 15:
                 tel.abort()
                 tel.send_data()
-                print ("Opd_02 low: Test aborted")
+            return ("EPD_01 low: Test aborted")
 
         def FV_02_Close():
             tel.close_valve(V2)
             tel.send_data()
             self.FV02_button.config(bg="red")
             self.valve_status['FV-02'] = 0
-            print("FV-02 closed")
             if self.valve_status["FV-02"] == 1:
                 tel.abort()
                 tel.send_data()
+            return ("FV-02 closed")
 
         def NV_02_Open():
             tel.open_valve(V1)
             tel.send_data()
             self.FV02_button.config(bg="green")
             self.valve_status['NV-02'] = 1
-            print("NV-02 opened")
+            return ("NV-02 opened")
 
         def OV_03_Open():
             tel.open_valve(V4)
             tel.send_data()
             self.OV03_button.config(bg="green")
             self.valve_status['OV-03'] = 1
-            print("OV-03 opened")
+            return ("OV-03 opened")
 
         def FV_03_Open():
             tel.open_valve(V3)
             tel.send_data()
             self.FV03_button.config(bg="green")
             self.valve_status['FV-03'] = 1
-            print("FV_03 opened")
+            return ("FV_03 opened")
 
         def Spark():
             tel.set_coil(16.66667)
@@ -348,45 +349,33 @@ class GUI:
 
         function_map = {
             'Read_OPD_02': Read_OPD_02, 'Read_FPD_02': Read_FPD_02,'Read_EPD_01': Read_EPD_01,
-            'FV_02_Close': FV_02_Close, 'NV_02_Open': NV_02_Open, 'OV_03_Open': OV_03_Open, 'FV_03_Open': FV_03_Open,
+            'FV_02': FV_02_Close, 'NV_02': NV_02_Open, 'OV_03': OV_03_Open, 'FV_03': FV_03_Open,
             'BLP_Abort': BLP_Abort, 'Spark': Spark
         }
 
-        file_path = filedialog.askopenfilename(filetypes=[("Excel Files", "*.xlsx *.xls")])
+        file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
         if file_path:
             print(f"Selected file: {file_path}")
             try:
                 start_time = time.time()
-
-                df = pd.read_excel(file_path)
-
-                # sort file by time columns
-                df = df.sort_values(by='Time')
-
-                # create array variable and fill with values from time column
+                df = pd.read_csv(file_path)
                 times = df['Time'].to_numpy()
-
-                # create array variable and fill with values from function column
-                functions = df['Function'].to_numpy()
-
-                var_value = df['VariableValues'].to_numpy()
-
                 print(times)
-                print('\n')
+                functions = df['Function'].to_numpy()
                 print(functions)
-                print(var_value)
+                spark_time = 0
 
-                spark_time = var_value[0]
-
-                while (time.time() - start_time) < 100:
+                while (time.time()-start_time) < 100:
                     for t, function in zip(times, functions):
                         current_time = time.time() - start_time
-                        #print(current_time)
-                        if t == current_time:
+                        range_min = current_time - 0.005
+                        range_max = current_time + 0.005
+                        if range_min < t < range_max:
                             func = function_map.get(function)  # converts string to callable function
-                            print(func()) # Call the function with an argument
-                            print(3)
-
+                            print(time.time() - start_time) # debug check
+                            print(func) #debug check
+                            print(func())
+                            print(time.time() - start_time)
             except Exception as e:(
                 print(f"Error loading file: {e}"))
 
@@ -545,4 +534,3 @@ if __name__ == "__main__":
         tel = Telemetry(sys_health)
     window = GUI()
     window.window.mainloop()
-
