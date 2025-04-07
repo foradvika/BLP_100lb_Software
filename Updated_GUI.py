@@ -1,4 +1,3 @@
-
 #Authors: Advika Govindarajan, Emily Jones, Adam Abid
 
 import tkinter as tk
@@ -291,7 +290,7 @@ class GUI:
             if self.pt1_data and self.pt1_data[-1] < 15:
                 tel.abort()
                 tel.send_data()
-            return "Opd_02 low: Test aborted"
+            return "OPD_02 low: Test aborted"
 
         def Read_FPD_02():
             if self.pt2_data and self.pt2_data[-1] < 15:
@@ -318,7 +317,7 @@ class GUI:
         def NV_02_Open():
             tel.open_valve(V1)
             tel.send_data()
-            self.FV02_button.config(bg="green")
+            self.NV02_button.config(bg="green")
             self.valve_status['NV-02'] = 1
             return ("NV-02 opened")
 
@@ -346,38 +345,68 @@ class GUI:
         def BLP_Abort():
             tel.abort()
             tel.send_data()
+            self.test_running = False  # Stop the test sequence
+            self.save_data_to_csv()  # Save the data
+            self.start_button.config(background="red")  # Visual indication
+            return "Test aborted and data saved"
 
         function_map = {
-            'Read_OPD_02': Read_OPD_02, 'Read_FPD_02': Read_FPD_02,'Read_EPD_01': Read_EPD_01,
-            'FV_02': FV_02_Close, 'NV_02': NV_02_Open, 'OV_03': OV_03_Open, 'FV_03': FV_03_Open,
-            'BLP_Abort': BLP_Abort, 'Spark': Spark
+            'Read_OPD_02': Read_OPD_02, 
+            'Read_FPD_02': Read_FPD_02,
+            'Read_EPD_01': Read_EPD_01,
+            'FV_02': FV_02_Close, 
+            'NV_02': NV_02_Open, 
+            'OV_03': OV_03_Open,
+            'Ov_03': OV_03_Open,  # Add case-insensitive variant
+            'FV_03': FV_03_Open,
+            'BLP_Abort': BLP_Abort, 
+            'Spark': Spark
         }
 
         file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
         if file_path:
             print(f"Selected file: {file_path}")
             try:
-                start_time = time.time()
+                # Read and sort the test sequence
                 df = pd.read_csv(file_path)
-                times = df['Time'].to_numpy()
-                print(times)
-                functions = df['Function'].to_numpy()
-                print(functions)
-                spark_time = 0
-
-                while (time.time()-start_time) < 100:
-                    for t, function in zip(times, functions):
-                        current_time = time.time() - start_time
-                        range_min = current_time - 0.005
-                        range_max = current_time + 0.005
-                        if range_min < t < range_max:
-                            func = function_map.get(function)  # converts string to callable function
-                            print(time.time() - start_time) # debug check
-                            print(func) #debug check
-                            print(func())
-                            print(time.time() - start_time)
-            except Exception as e:(
-                print(f"Error loading file: {e}"))
+                test_sequence = list(zip(df['Time'], df['Function']))
+                test_sequence.sort(key=lambda x: x[0])  # Sort by time
+                
+                # Initialize test state
+                self.test_running = True
+                self.test_start_time = time.time()
+                self.current_step = 0
+                
+                def execute_test_step():
+                    if not self.test_running or self.current_step >= len(test_sequence):
+                        return
+                    
+                    current_time = time.time() - self.test_start_time
+                    target_time, function = test_sequence[self.current_step]
+                    
+                    # If it's time to execute this step
+                    if current_time >= target_time:
+                        func = function_map.get(function)
+                        if func:
+                            try:
+                                result = func()
+                                print(f"Executed {function} at {current_time:.3f}s: {result}")
+                            except Exception as e:
+                                print(f"Error executing {function}: {e}")
+                                self.test_running = False
+                        
+                        self.current_step += 1
+                    
+                    # Schedule next check
+                    if self.test_running:
+                        self.window.after(10, execute_test_step)  # Check every 10ms
+                
+                # Start the test sequence
+                execute_test_step()
+                
+            except Exception as e:
+                print(f"Error loading file: {e}")
+                self.test_running = False
 
     def toggle_valve(self, name):
         if name == V1 and self.valve_status['NV-02'] == 0:
@@ -432,21 +461,20 @@ class GUI:
             print("Error toggling valve")
 
     def update_graphs(self):
-        new_data = tel.get_data()  # expected to return [thrust, pt1 = OPD_02, pt2 = FPD_02, pt3 = EPD01, pt4, pt5]
+        new_data = tel.get_data()
         if new_data and len(new_data) >= 6:
             # Keep a full record
             self.all_data.append(new_data[:6])
 
-            # The code here appends new_data[0] as PT1, but note that new_data[0] is "thrust" from FakeTelemetry
-            # We'll leave the code as-is to avoid breaking your existing references.
-            self.pt1_data.append(new_data[0])  # labeled as PT1 in the GUI
+            # Update data arrays
+            self.pt1_data.append(new_data[0])
             self.pt2_data.append(new_data[1])
             self.pt3_data.append(new_data[2])
             self.pt4_data.append(new_data[3])
             self.pt5_data.append(new_data[4])
             self.thrust_data.append(new_data[5])
 
-            # Update each plot
+            # Update plots
             self.pt1_line.set_data(range(len(self.pt1_data)), self.pt1_data)
             self.pt1_ax.relim()
             self.pt1_ax.autoscale_view()
@@ -477,10 +505,13 @@ class GUI:
             self.thrust_ax.autoscale_view()
             self.thrust_canvas.draw()
 
-            # Update timer
-            elapsed = int(time.time() - self.start_time)
-
-            self.timer_label.config(text=f"Elapsed Time: {elapsed} s")
+            # Update timer - use the test start time for accuracy
+            if hasattr(self, 'test_start_time'):
+                elapsed = time.time() - self.test_start_time
+                self.timer_label.config(text=f"Elapsed Time: {elapsed:.1f} s")
+            elif hasattr(self, 'start_time'):
+                elapsed = time.time() - self.start_time
+                self.timer_label.config(text=f"Elapsed Time: {elapsed:.1f} s")
 
             # Optional warnings
             warning_messages = []
