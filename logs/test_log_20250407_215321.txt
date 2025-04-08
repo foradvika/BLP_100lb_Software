@@ -1,0 +1,14 @@
+Selected file: C:/Users/aleja/Portfolio/aero/BLP_100lb_Software/src/tests/test sequence/BLP_Dry_Test.csv
+FakeTelemetry: Test sequence loaded with 9 commands
+FakeTelemetry: Test started.
+Executed FV-02 at 2.400s: FV-02 closed
+Executed FV_02 at 10.231s: CLOSE
+Executed NV-02 at 3.500s: NV-02 opened
+Executed NV_02 at 15.068s: OPEN
+Executed FV-03 at 6.900s: FV-03 opened
+Executed FV_03 at 30.311s: OPEN
+FakeTelemetry: Test aborted.
+Executed BLP_Abort at 7.000s: None
+Executed BLP_Abort at 30.752s: START
+FakeTelemetry: Test aborted.
+Executed BLP_Abort at 9.700s: None
