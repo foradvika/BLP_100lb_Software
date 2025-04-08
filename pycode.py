@@ -18,7 +18,7 @@ import json
 import struct
 import serial
 from serial_pc import BT
-from test_sequ_excel import test_sequence
+#from test_sequ_excel import test_sequence
 
 # global variables
 V1 = 0

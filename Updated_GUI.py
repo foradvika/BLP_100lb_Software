@@ -377,7 +377,7 @@ class GUI:
                 print(var_value)
 
                 spark_time = var_value[0]
-
+git 
                 while (time.time() - start_time) < 100:
                     for t, function in zip(times, functions):
                         current_time = time.time() - start_time
