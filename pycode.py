@@ -17,7 +17,10 @@ import numpy
 import json
 import struct
 import serial
-from serial_pc import BT
+from threading import Timer
+import time
+#from serial_pc import BT
+import uart_code1
 from test_sequ_excel import test_sequence
 
 # global variables
@@ -25,6 +28,11 @@ V1 = 0
 V2 = 1
 V3 = 2
 V4 = 3
+P1 = 4
+P2 = 5
+P3 = 6
+P4 = 7
+
 C = 4
 T = 5
 CS = 6
@@ -121,12 +129,6 @@ class Wifi_Host:
         self.addy = None
         '''
 
-        try:
-
-            BT.connect_to_esp32()
-
-        except Exception as e:
-            print(f"❌ Error: {e}")
 
     def send_command(self, d):
         '''
@@ -167,15 +169,16 @@ class Telemetry:
         # 32 bits for 32 commands -> bitwise operations for processing
         self.heartbeat = -49  # checksum for verification
         self.coil_speed = 80  # default coil speed
-        self.data = [[0], [0], [0], [0], [0]]
+        self.data = [[0], [0], [0], [0], [0], [0],[0],[0]]
         # self.wifi       = wifi
         self.sys = sys
 
         # data packet       v1     v2    v3    v4   C     T     CS     A
-        self.data_packet = [[0], [0], [0], [0], [0], [0], [0], [0]]
+        #self.data_packet = [0], [0], [0], [0], [0], [0], [0]]
+        self.data_packet = [0,0,0,0,0,0,0,0]
         self.rx_data = []
         # connects to ESP32
-        self.sock = BT.connect_to_esp32()
+        #self.sock = BT.connect_to_esp32()
         # all this class does is set and clear bits for the fized data packets coming in and out
 
         ''' 
@@ -192,15 +195,70 @@ class Telemetry:
 
     def send_data(self):
         # self.wifi.send_command(self.send_data_out())
-        BT.send_data(self.sock, self.data_packet)
+        #BT.send_data(self.sock, self.data_packet)
+        print(self.data_packet)
+        uart_code1.send_message(self.data_packet)
 
         return 0
-
+        
+    
     # function that starts processing the incoming data
     def get_data(self):
+        print('reading')
+        msg = uart_code1.receive_response()
+        print('recieved')
+        print(msg)
+        return msg
+        '''
         # rx = self.wifi.recieve_data()
-        self.rx_data = BT.receive_data(self.sock)
-        return self.rx_data
+        #s#elf.rx_data = BT.receive_data(self.sock)
+        self.rx_data = uart_code1.receive_response()
+        print(self.rx_data)
+        print("hi")
+        asr = self.rx_data[1].decode("latin-1")
+        
+        #print(self.rx_data[1].hex())
+        print("bye")
+        print(asr)
+        
+        print("hello")
+        asr = b''.join(self.rx_data)
+        text = asr.decode('latin-1')
+        lines = text.strip().split('\r\n')
+        print(lines)
+        
+        
+        # add processing code from byte data to string here
+        #data_str = b''.join(self.rx_data).decode('Latin1')
+    # Split the string at the CRLF sequences
+    
+        tokens = data_str.split('\r\n')
+        float_list = []
+        for token in tokens:
+            token = token.strip()# Remove any extraneous whitespace
+            # Make sure it's not an empty string
+            if token:
+                try:
+                    value = float(token)
+                    if value < 0:
+                        value = 123456.5
+                    float_list.append(value)
+                # Convert the token to a float and add it to the list
+                #numbers.append(token)
+                #float_list = []
+                #for i in numbers[1:]:
+                    #new_data = float(i)
+                    #float_list.append(i)
+                    
+                #data = numbers[1:]
+                #new_data = float(data)
+                except ValueError:
+                # If conversion fails, print a warning and skip this token
+                    print(f"Warning: Could not convert '{token}' to a float.")
+        return float_list
+            #return self.rx_data
+    '''
+        
 
     # index 0
     def open_valve(self, num):
@@ -217,28 +275,53 @@ class Telemetry:
             case 4:
                 return ser.writelines('v4')
         '''
-        self.data_packet[num] = [1]
+        if(num == V1):
+            self.data_packet[num] = [1]
+        if(num == V2):
+            self.data_packet[num] = [2]
+        if(num == V3):
+            self.data_packet[num] = [3]
+        if(num == V4):
+            self.data_packet[num] = [4]
+            
         System_Health.py_stats["v f'{num} open command"] = 'good'
         return 0
 
     def close_valve(self, num):
         # clear msb
-        self.data_packet[num] = [0]
+        if(num == V1):
+            self.data_packet[num] = ["!"]
+        if(num == V2):
+            self.data_packet[num] = ["@"]
+        if(num == V3):
+            self.data_packet[num] = ["#"]
+        if(num == V4):
+            self.data_packet[num] = ["$"]
         System_Health.py_stats["v{num} open command"] = 'bad'
         return 0
 
     def spark_coil(self):
-        self.data_packet[C] = [1]
-        System_Health.py_stats["v{num} open command"] = 'bad'  # status gets cleared from pi side
+        self.data_packet[C] = [9]
+         #System_Health.py_stats["v{num} open command"] = 'bad'  # status gets cleared from pi side
         return 0
 
     def start_test(self):
-        self.data_packet[T] = [1]
+        #self.data_packet[T] = ['5']
         print("*start test- > needs to be finished")
         return 0
 
+        
     def abort(self):
-        self.data_packet[A] = [1]
+        #self.data_packet[A] = ['7']
+        self.data_packet[V3] = ["#"]
+        self.data_packet[V1] = [1]
+        self.data_packet[V4] = ["$"]
+        time.sleep(0.5)   
+        self.data_packet[V2] = ["@"]
+        return 0
+        print('pycode abort')
+
+        #uart_code1.send_message(self.data_packet)
 
     def upload_test_sequence(self, file_path):
         # parse excel test sequence
@@ -260,6 +343,16 @@ class Metrics:
 
 
 
+t = 0
+#for i in range(100):
+ #uart_code1.send_message(str(t % 4))
+ #t +=1
+
+for i in range(2):
+    sys = System_Health
+    tel = Telemetry(sys)
+    #data = tel.get_data()
+    #print(data)
 
 
 
