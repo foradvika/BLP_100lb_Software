@@ -1,5 +1,4 @@
-
-#Authors: Advika Govindarajan, Emily Jones, Adam Abid
+# Authors: Advika Govindarajan, Emily Jones, Adam Abid, Alex Garcia
 
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -7,15 +6,17 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import pandas as pd
-#import os
-#import socket
+# import os
+# import socket
 import time
 from pycode import Telemetry, System_Health, Metrics
 from pycode import V1, V2, V3, V4, C, T, CS, A
-#from serial_pc import BT
-#import subprocess
-#import datetime
-#import json
+
+
+# from serial_pc import BT
+# import subprocess
+# import datetime
+# import json
 
 # ---------- Fake Telemetry for Simulation Testing ----------
 class FakeTelemetry:
@@ -142,7 +143,7 @@ class GUI:
                                      text="NV-02",
                                      foreground="black",
                                      font=("Times New Roman", 20),
-                                     command=lambda: self.toggle_valve(V1))
+                                     command=lambda: self.toggle_valve(V4))
         self.NV02_button.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
 
         # FV02 Button
@@ -150,7 +151,7 @@ class GUI:
                                      text="FV-02",
                                      foreground="black",
                                      font=("Times New Roman", 20),
-                                     command=lambda: self.toggle_valve(V2))
+                                     command=lambda: self.toggle_valve(V1))
         self.FV02_button.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
 
         # FV03 Button
@@ -158,7 +159,7 @@ class GUI:
                                      text="FV-03",
                                      foreground="black",
                                      font=("Times New Roman", 20),
-                                     command=lambda: self.toggle_valve(V3))
+                                     command=lambda: self.toggle_valve(V2))
         self.FV03_button.grid(row=2, column=2, sticky="ew", padx=5, pady=5)
 
         # OV03 Button
@@ -166,7 +167,7 @@ class GUI:
                                      text="OV-03",
                                      foreground="black",
                                      font=("Times New Roman", 20),
-                                     command=lambda: self.toggle_valve(V4))
+                                     command=lambda: self.toggle_valve(V3))
         self.OV03_button.grid(row=2, column=3, sticky="ew", padx=5, pady=5)
 
         # Start Button
@@ -196,28 +197,28 @@ class GUI:
         self.thrust_label.grid(row=5, column=0, sticky="nsew", padx=5, pady=5)
 
         self.PT1_label = tk.Label(self.window,
-                                  text="Pressure Transducer 1(OPD_02)",
+                                  text="OPD_01",
                                   background="white",
                                   foreground="black",
                                   font=("Times New Roman", 15))
         self.PT1_label.grid(row=5, column=2, sticky="nsew", padx=5, pady=5)
 
         self.PT2_label = tk.Label(self.window,
-                                  text="Pressure Transducer 2(FPD_02)",
+                                  text="OPD_02",
                                   background="white",
                                   foreground="black",
                                   font=("Times New Roman", 15))
         self.PT2_label.grid(row=5, column=4, sticky="nsew", padx=5, pady=5)
 
         self.PT3_label = tk.Label(self.window,
-                                  text="Pressure Transducer 3(EPD_01)",
+                                  text="EPD_01",
                                   background="white",
                                   foreground="black",
                                   font=("Times New Roman", 15))
         self.PT3_label.grid(row=7, column=0, sticky="nsew", padx=5, pady=5)
 
         self.PT4_label = tk.Label(self.window,
-                                  text="Pressure Transducer 4",
+                                  text="FPD_01",
                                   background="white",
                                   foreground="black",
                                   font=("Times New Roman", 15))
@@ -263,18 +264,27 @@ class GUI:
         return fig, ax, canvas, line
 
     def start(self):
-        tel.start_test()
-        tel.send_data()
-        print("Test started")
+        #tel.start_test()
+        #tel.send_data()
+        #print("Test started")
         self.start_time = time.time()  # record test start time
         self.update_graphs()  # start telemetry update loop
         self.start_button.config(background="green")
-        self.abort_button.config(background="light coral")
+        #self.abort_button.config(background="red")
 
     def abort(self):
         tel.abort()
         tel.send_data()
-        print("Test aborted")
+        self.OV03_button.config(bg="red")
+        self.valve_status['OV-03'] = 0
+        self.FV03_button.config(bg="red")
+        self.valve_status['FV-03'] = 0
+        self.FV02_button.config(bg="green")
+        self.valve_status['FV-02'] = 1
+        self.NV02_button.config(bg="red")
+        self.valve_status['NV-02'] = 0
+        self.test_running = False # Stop the test sequence
+        print("Manual Test aborted")
 
         # Stop the update loop
         if hasattr(self, "after_id") and self.after_id:
@@ -287,143 +297,186 @@ class GUI:
         messagebox.showinfo("Test Data Saved", "All telemetry data has been saved to test_data.csv")
 
     def upload_file(self):
+        def Start_Count():
+            self.start()
+
+        def BLP_Abort():
+            self.abort()
+            # self.test_running = False Stop the test sequence
+            return "Test aborted and data saved"
+
         def Read_OPD_02():
-            if self.pt1_data and self.pt1_data[-1] < 15:
-                tel.abort()
-                tel.send_data()
-            return "Opd_02 low: Test aborted"
+            print(self.pt1_data)
+             #if self.pt1_data and self.pt1_data[-1] < 15:
+                     #return BLP_Abort()
+            return ("OPD_02 within safe range")
 
         def Read_FPD_02():
-            if self.pt2_data and self.pt2_data[-1] < 15:
-                tel.abort()
-                tel.send_data()
-            return "FPD_02 low: Test aborted"
+             #if self.pt2_data and self.pt2_data[-1] < 15:
+                 #return BLP_Abort()
+            return ("FPD_02 within safe range")
 
         def Read_EPD_01():
-            if self.pt3_data and self.pt3_data[-1] < 15:
-                tel.abort()
-                tel.send_data()
-            return ("EPD_01 low: Test aborted")
+             #if self.pt3_data and self.pt3_data[-1] < 15:
+                 #return BLP_Abort()
+            return ("EPD_01 within safe range")
 
         def FV_02_Close():
-            tel.close_valve(V2)
+            tel.close_valve(V1)
             tel.send_data()
             self.FV02_button.config(bg="red")
             self.valve_status['FV-02'] = 0
             if self.valve_status["FV-02"] == 1:
-                tel.abort()
-                tel.send_data()
+                return BLP_Abort()
             return ("FV-02 closed")
 
         def NV_02_Open():
-            tel.open_valve(V1)
+            tel.open_valve(V4)
             tel.send_data()
-            self.FV02_button.config(bg="green")
+            self.NV02_button.config(bg="green")
             self.valve_status['NV-02'] = 1
+            if self.valve_status["NV-02"] == 0:
+                return BLP_Abort()
             return ("NV-02 opened")
 
         def OV_03_Open():
-            tel.open_valve(V4)
+            tel.open_valve(V3)
             tel.send_data()
             self.OV03_button.config(bg="green")
             self.valve_status['OV-03'] = 1
+            if self.valve_status["OV-03"] == 0:
+                return BLP_Abort()
             return ("OV-03 opened")
 
         def FV_03_Open():
-            tel.open_valve(V3)
+            tel.open_valve(V2)
             tel.send_data()
             self.FV03_button.config(bg="green")
             self.valve_status['FV-03'] = 1
+            if self.valve_status["FV-03"] == 0:
+                return BLP_Abort()
             return ("FV_03 opened")
 
-        def Spark():
-            tel.set_coil(16.66667)
+        def Spark():                             #Spark function needs to be fixed
+            tel.spark_coil()
             tel.send_data()
-            while current_time < spark_time:
-                tel.spark_coil()
-                tel.send_data()
-
-        def BLP_Abort():
-            tel.abort()
-            tel.send_data()
+            return('spark sent')
+                
+                 #while current_time < spark_time:
+            
+            
 
         function_map = {
-            'Read_OPD_02': Read_OPD_02, 'Read_FPD_02': Read_FPD_02,'Read_EPD_01': Read_EPD_01,
-            'FV_02': FV_02_Close, 'NV_02': NV_02_Open, 'OV_03': OV_03_Open, 'FV_03': FV_03_Open,
-            'BLP_Abort': BLP_Abort, 'Spark': Spark
+            'Start_Count': Start_Count,
+            'Read_OPD_02': Read_OPD_02,
+            'Read_FPD_02': Read_FPD_02,
+            'Read_EPD_01': Read_EPD_01,
+            'FV_02': FV_02_Close,
+            'NV_02': NV_02_Open,
+            'OV_03': OV_03_Open,
+            'Ov_03': OV_03_Open,  # Add case-insensitive variant
+            'FV_03': FV_03_Open,
+            'BLP_Abort': BLP_Abort,
+            'Spark': Spark
         }
 
         file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
         if file_path:
             print(f"Selected file: {file_path}")
             try:
-                start_time = time.time()
+                # Read and sort the test sequence
                 df = pd.read_csv(file_path)
-                times = df['Time'].to_numpy()
-                print(times)
-                functions = df['Function'].to_numpy()
-                print(functions)
-                spark_time = 0
+                test_sequence = list(zip(df['Time'], df['Function']))
+                #test_sequence.sort(key=lambda x: x[0])  # Sort by time
+                print(test_sequence)
 
-                while (time.time()-start_time) < 100:
-                    for t, function in zip(times, functions):
-                        current_time = time.time() - start_time
-                        range_min = current_time - 0.005
-                        range_max = current_time + 0.005
-                        if range_min < t < range_max:
-                            func = function_map.get(function)  # converts string to callable function
-                            print(time.time() - start_time) # debug check
-                            print(func) #debug check
-                            print(func())
-                            print(time.time() - start_time)
-            except Exception as e:(
-                print(f"Error loading file: {e}"))
+                # Initialize test state
+                self.test_running = True
+                self.test_start_time = time.time()
+                self.current_step = 0
+
+                def execute_test_step():
+                    if self.test_running == 'False': 
+                        return 0
+                    if self.current_step >= len(test_sequence):
+                        return 0
+                        
+                    current_time = time.time() - self.test_start_time
+                    target_time, function = test_sequence[self.current_step]
+
+                    # If it's time to execute this step
+                    if current_time >= target_time and self.test_running:
+                        func = function_map.get(function)
+                        if func:
+                            try:
+                                result = func()
+                                print(f"Executed {function} at {current_time:.3f}s: {result}")
+                            except Exception as e:
+                                print(f"Error executing {function}: {e}")
+                                self.test_running = False
+
+                        self.current_step += 1
+
+                    # Schedule next check
+                    if self.test_running:
+                        self.window.after(10, execute_test_step)  # Check every 10ms
+
+                # Start the test sequence
+                execute_test_step()
+
+            except Exception as e:
+                print(f"Error loading file: {e}")
+                self.test_running = False
 
     def toggle_valve(self, name):
-        if name == V1 and self.valve_status['NV-02'] == 0:
-            tel.open_valve(V1)
+        if name == V4 and self.valve_status['NV-02'] == 0:
+            print('opening')
+            tel.open_valve(V4)
+            print('sending')
             tel.send_data()
+            print('green')
             self.NV02_button.configure(background="green")
+            print('1')
             self.valve_status['NV-02'] = 1
             print("NV-02 opened")
-        elif name == V2 and self.valve_status['FV-02'] == 0:
-            tel.open_valve(V2)
+        elif name == V1 and self.valve_status['FV-02'] == 0:
+            tel.open_valve(V1)
             tel.send_data()
             self.FV02_button.config(bg="green")
             self.valve_status['FV-02'] = 1
             print("FV-02 opened")
-        elif name == V3 and self.valve_status['FV-03'] == 0:
-            tel.open_valve(V3)
+        elif name == V2 and self.valve_status['FV-03'] == 0:
+            tel.open_valve(V2)
             tel.send_data()
             self.FV03_button.config(bg="green")
             self.valve_status['FV-03'] = 1
             print("FV-03 opened")
-        elif name == V4 and self.valve_status['OV-03'] == 0:
-            tel.open_valve(V4)
+        elif name == V3 and self.valve_status['OV-03'] == 0:
+            tel.open_valve(V3)
             tel.send_data()
             self.OV03_button.config(bg="green")
             self.valve_status['OV-03'] = 1
             print("OV-03 opened")
-        elif name == V1 and self.valve_status['NV-02'] == 1:
-            tel.close_valve(V1)
+        elif name == V4 and self.valve_status['NV-02'] == 1:
+            tel.close_valve(V4)
             tel.send_data()
             self.NV02_button.config(bg="red")
             self.valve_status['NV-02'] = 0
             print("NV-02 closed")
-        elif name == V2 and self.valve_status['FV-02'] == 1:
-            tel.close_valve(V2)
+        elif name == V1 and self.valve_status['FV-02'] == 1:
+            tel.close_valve(V1)
             tel.send_data()
             self.FV02_button.config(bg="red")
             self.valve_status['FV-02'] = 0
             print("FV-02 closed")
-        elif name == V3 and self.valve_status['FV-03'] == 1:
-            tel.close_valve(V3)
+        elif name == V2 and self.valve_status['FV-03'] == 1:
+            tel.close_valve(V2)
             tel.send_data()
             self.FV03_button.config(bg="red")
             self.valve_status['FV-03'] = 0
             print("FV-03 closed")
-        elif name == V4 and self.valve_status['OV-03'] == 1:
-            tel.close_valve(V4)
+        elif name == V3 and self.valve_status['OV-03'] == 1:
+            tel.close_valve(V3)
             tel.send_data()
             self.OV03_button.config(bg="red")
             self.valve_status['OV-03'] = 0
@@ -432,21 +485,22 @@ class GUI:
             print("Error toggling valve")
 
     def update_graphs(self):
-        new_data = tel.get_data()  # expected to return [thrust, pt1 = OPD_02, pt2 = FPD_02, pt3 = EPD01, pt4, pt5]
-        if new_data and len(new_data) >= 6:
+        new_data = tel.get_data()
+        print('Got data')
+        if new_data and len(new_data) >= 4:
+            print('Good data')
             # Keep a full record
-            self.all_data.append(new_data[:6])
+            self.all_data.append(new_data[:4])
 
-            # The code here appends new_data[0] as PT1, but note that new_data[0] is "thrust" from FakeTelemetry
-            # We'll leave the code as-is to avoid breaking your existing references.
-            self.pt1_data.append(new_data[0])  # labeled as PT1 in the GUI
+            print('Update data arrays')
+            self.pt1_data.append(new_data[0])
             self.pt2_data.append(new_data[1])
             self.pt3_data.append(new_data[2])
             self.pt4_data.append(new_data[3])
-            self.pt5_data.append(new_data[4])
-            self.thrust_data.append(new_data[5])
+             #self.pt5_data.append(new_data[4])
+             #self.thrust_data.append(new_data[5])
 
-            # Update each plot
+            print('Update plots')
             self.pt1_line.set_data(range(len(self.pt1_data)), self.pt1_data)
             self.pt1_ax.relim()
             self.pt1_ax.autoscale_view()
@@ -466,7 +520,7 @@ class GUI:
             self.pt4_ax.relim()
             self.pt4_ax.autoscale_view()
             self.pt4_canvas.draw()
-
+            
             self.pt5_line.set_data(range(len(self.pt5_data)), self.pt5_data)
             self.pt5_ax.relim()
             self.pt5_ax.autoscale_view()
@@ -476,13 +530,18 @@ class GUI:
             self.thrust_ax.relim()
             self.thrust_ax.autoscale_view()
             self.thrust_canvas.draw()
+            print('Updated')
 
-            # Update timer
-            elapsed = int(time.time() - self.start_time)
-
-            self.timer_label.config(text=f"Elapsed Time: {elapsed} s")
+            # Update timer - use the test start time for accuracy
+            if hasattr(self, 'test_start_time'):
+                elapsed = time.time() - self.test_start_time
+                self.timer_label.config(text=f"Elapsed Time: {elapsed:.1f} s")
+            elif hasattr(self, 'start_time'):
+                elapsed = time.time() - self.start_time
+                self.timer_label.config(text=f"Elapsed Time: {elapsed:.1f} s")
 
             # Optional warnings
+            '''
             warning_messages = []
             if self.pt1_data and self.pt1_data[-1] > 350:  # Called "EPD_01" in original code
                 warning_messages.append("Almost too high EPD_01!")
@@ -494,6 +553,7 @@ class GUI:
                 warning_messages.append("Almost too high OPD_01!")
 
             self.warning_label.config(text="\n".join(warning_messages))
+            '''
 
         # Schedule the next update
         self.after_id = self.window.after(1000, self.update_graphs)
@@ -527,10 +587,11 @@ class GUI:
 
 if __name__ == "__main__":
     sys_health = System_Health()
-    SIMULATION = True  # Set to False to use real telemetry
+    SIMULATION = False  # Set to False to use real telemetry
     if SIMULATION:
         tel = FakeTelemetry(sys_health)
     else:
         tel = Telemetry(sys_health)
     window = GUI()
     window.window.mainloop()
+
