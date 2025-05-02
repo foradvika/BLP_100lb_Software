@@ -67,8 +67,11 @@ class GUI:
         self.pt4_data = []
         self.pt5_data = []
 
-        # all_data will hold rows of [thrust, pt1, pt2, pt3, pt4, pt5]
+        # all_data will hold rows of [ pt1, pt2, pt3, pt4, pt5,thrust,]
         self.all_data = []
+        
+        # All times
+        self.times =[]
 
         # Placeholders for plot elements
         self.thrust_fig = self.thrust_ax = self.thrust_canvas = self.thrust_line = None
@@ -225,7 +228,7 @@ class GUI:
         self.PT4_label.grid(row=7, column=2, sticky="nsew", padx=5, pady=5)
 
         self.PT5_label = tk.Label(self.window,
-                                  text="Pressure Transducer 5",
+                                  text="FPD_02",
                                   background="white",
                                   foreground="black",
                                   font=("Times New Roman", 15))
@@ -264,10 +267,9 @@ class GUI:
         return fig, ax, canvas, line
 
     def start(self):
-        #tel.start_test()
-        #tel.send_data()
-        #print("Test started")
-        self.start_time = time.time()  # record test start time
+        print("Test started")
+        self.start_time = time.time()  
+        #print('record test start time')
         self.update_graphs()  # start telemetry update loop
         self.start_button.config(background="green")
         #self.abort_button.config(background="red")
@@ -374,7 +376,6 @@ class GUI:
             'FV_02': FV_02_Close,
             'NV_02': NV_02_Open,
             'OV_03': OV_03_Open,
-            'Ov_03': OV_03_Open,  # Add case-insensitive variant
             'FV_03': FV_03_Open,
             'BLP_Abort': BLP_Abort,
             'Spark': Spark
@@ -382,13 +383,14 @@ class GUI:
 
         file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
         if file_path:
+            
             print(f"Selected file: {file_path}")
             try:
                 # Read and sort the test sequence
                 df = pd.read_csv(file_path)
                 test_sequence = list(zip(df['Time'], df['Function']))
-                #test_sequence.sort(key=lambda x: x[0])  # Sort by time
-                print(test_sequence)
+                
+                #print(test_sequence)
 
                 # Initialize test state
                 self.test_running = True
@@ -396,7 +398,7 @@ class GUI:
                 self.current_step = 0
 
                 def execute_test_step():
-                    if self.test_running == 'False': 
+                    if not self.test_running: 
                         return 0
                     if self.current_step >= len(test_sequence):
                         return 0
@@ -411,6 +413,7 @@ class GUI:
                             try:
                                 result = func()
                                 print(f"Executed {function} at {current_time:.3f}s: {result}")
+                                
                             except Exception as e:
                                 print(f"Error executing {function}: {e}")
                                 self.test_running = False
@@ -427,16 +430,14 @@ class GUI:
             except Exception as e:
                 print(f"Error loading file: {e}")
                 self.test_running = False
+            
+    
 
     def toggle_valve(self, name):
         if name == V4 and self.valve_status['NV-02'] == 0:
-            print('opening')
             tel.open_valve(V4)
-            print('sending')
             tel.send_data()
-            print('green')
             self.NV02_button.configure(background="green")
-            print('1')
             self.valve_status['NV-02'] = 1
             print("NV-02 opened")
         elif name == V1 and self.valve_status['FV-02'] == 0:
@@ -486,21 +487,25 @@ class GUI:
 
     def update_graphs(self):
         new_data = tel.get_data()
-        print('Got data')
-        if new_data and len(new_data) >= 4:
-            print('Good data')
+        #print('Got data')
+        if new_data and len(new_data) >= 6:
+            #print('Good data')
             # Keep a full record
-            self.all_data.append(new_data[:4])
+            ts = time.time() - (self.test_start_time if hasattr(self, "test_Start_time") else self.start_time)
+            self.times.append(ts)
+            self.all_data.append(new_data[:6])
 
-            print('Update data arrays')
+            #print('Update data arrays')
             self.pt1_data.append(new_data[0])
             self.pt2_data.append(new_data[1])
             self.pt3_data.append(new_data[2])
             self.pt4_data.append(new_data[3])
-             #self.pt5_data.append(new_data[4])
-             #self.thrust_data.append(new_data[5])
+            self.pt5_data.append(new_data[4])
+            self.thrust_data.append(new_data[5])
+            
+             
 
-            print('Update plots')
+            #print('Update plots')
             self.pt1_line.set_data(range(len(self.pt1_data)), self.pt1_data)
             self.pt1_ax.relim()
             self.pt1_ax.autoscale_view()
@@ -530,7 +535,7 @@ class GUI:
             self.thrust_ax.relim()
             self.thrust_ax.autoscale_view()
             self.thrust_canvas.draw()
-            print('Updated')
+            #print('Updated')
 
             # Update timer - use the test start time for accuracy
             if hasattr(self, 'test_start_time'):
@@ -541,7 +546,7 @@ class GUI:
                 self.timer_label.config(text=f"Elapsed Time: {elapsed:.1f} s")
 
             # Optional warnings
-            '''
+            
             warning_messages = []
             if self.pt1_data and self.pt1_data[-1] > 350:  # Called "EPD_01" in original code
                 warning_messages.append("Almost too high EPD_01!")
@@ -553,23 +558,25 @@ class GUI:
                 warning_messages.append("Almost too high OPD_01!")
 
             self.warning_label.config(text="\n".join(warning_messages))
-            '''
+            
 
         # Schedule the next update
         self.after_id = self.window.after(1000, self.update_graphs)
 
     def save_data_to_csv(self):
         # Create a dictionary to collect time:value pairs for each sensor.
-        sensors = {"PT1": [], "PT2": [], "PT3": [], "PT4": [], "PT5": [], "THRUST": []}
+        sensors = {"OPD_01": [], "OPD_02": [], "EPD_01": [], "FPD_01": [], "FPD_02": [], "THRUST": []}
+        i = 0 
         for row in self.all_data:
             # row[0] is the time offset; row[1] is PT1, row[2] is PT2, etc.
-            t = row[0]
-            sensors["PT1"].append(f"{t}:{row[0]}")
-            sensors["PT2"].append(f"{t}:{row[1]}")
-            sensors["PT3"].append(f"{t}:{row[2]}")
-            sensors["PT4"].append(f"{t}:{row[3]}")
-            sensors["PT5"].append(f"{t}:{row[4]}")
-            sensors["THRUST"].append(f"{t}:{row[5]}")
+            t = self.times[i]
+            sensors["OPD_01"].append(f"{t:.2f}:{row[0]}")
+            sensors["OPD_02"].append(f"{t:.2f}:{row[1]}")
+            sensors["EPD_01"].append(f"{t:.2f}:{row[2]}")
+            sensors["FPD_01"].append(f"{t:.2f}:{row[3]}")
+            sensors["FPD_02"].append(f"{t:.2f}:{row[4]}")
+            sensors["THRUST"].append(f"{t:.2f}:{row[5]}")
+            i+=1
 
         # For each sensor, join the time:value pairs into one string.
         data = []
@@ -577,7 +584,7 @@ class GUI:
             data.append([sensor, ", ".join(pairs)])
 
         # Create a DataFrame with two columns: one for the sensor and one for its data.
-        df = pd.DataFrame(data, columns=["Sensor", "Time:Value Pairs"])
+        df = pd.DataFrame(data, columns=["Sensor", "Time"])
 
         # Save the DataFrame to a CSV file.
         csv_filename = "test_data.csv"
@@ -594,4 +601,3 @@ if __name__ == "__main__":
         tel = Telemetry(sys_health)
     window = GUI()
     window.window.mainloop()
-
