@@ -151,7 +151,7 @@ class Wifi_Host:
         '''
         packet_size = 1024
         self.data = self.connection.recv(packet_size)
-        print(type(self.data))
+        #print(type(self.data))
 
         if (self.data == ''):
             System_Health.py_stats["wifi message rx"] = 'bad'
@@ -196,7 +196,7 @@ class Telemetry:
     def send_data(self):
         # self.wifi.send_command(self.send_data_out())
         #BT.send_data(self.sock, self.data_packet)
-        print(self.data_packet)
+        #print(self.data_packet)
         uart_code1.send_message(self.data_packet)
 
         return 0
@@ -204,10 +204,10 @@ class Telemetry:
     
     # function that starts processing the incoming data
     def get_data(self):
-        print('reading')
+        #print('reading')
         msg = uart_code1.receive_response()
-        print('recieved')
-        print(msg)
+        #print('recieved')
+        #print(msg)
         return msg
         '''
         # rx = self.wifi.recieve_data()
@@ -301,7 +301,8 @@ class Telemetry:
         return 0
 
     def spark_coil(self):
-        self.data_packet[C] = [9]
+        self.data_packet[C] = ['B']
+        #self.data_packet[C] = ['D']
          #System_Health.py_stats["v{num} open command"] = 'bad'  # status gets cleared from pi side
         return 0
 
